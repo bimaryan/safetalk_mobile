@@ -6,6 +6,7 @@ import 'screens/Home.dart';
 import 'screens/Login.dart';
 import 'screens/Register.dart';
 import 'screens/Panduan.dart';
+import 'screens/Profile.dart';
 import 'layouts/DashboardLayout.dart';
 
 void main() {
@@ -21,8 +22,7 @@ class SafeTalkApp extends StatelessWidget {
       title: 'SafeTalk AI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily:
-            'Inter', // Biar font-nya persis Tailwind (opsional: tambahin font di pubspec.yaml)
+        fontFamily: 'Inter', 
         scaffoldBackgroundColor: Colors.white,
       ),
       initialRoute: '/',
@@ -32,13 +32,14 @@ class SafeTalkApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
 
-        // Route yang dibungkus Guard (Setara ChatGuard/ProtectedRoute)
+        // Route yang dibungkus Guard 
         '/auth_gate': (context) => const AuthGate(),
-        '/dashboard': (context) =>
-            const DashboardLayout(), // Isinya Chat & Emergency
+        '/dashboard': (context) => const DashboardLayout(),
         '/panduan': (context) => const PanduanScreen(),
-
         '/chat': (context) => const DashboardLayout(),
+        
+        // --- TAMBAHKAN ROUTE PROFIL DI SINI ---
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }

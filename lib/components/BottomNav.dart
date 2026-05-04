@@ -1,13 +1,26 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 
 class CustomBottomNav extends StatefulWidget {
   final int currentIndex;
 
-  const CustomBottomNav({super.key, required this.currentIndex});
+  /// Callback saat item diklik. Kalau null, pakai Navigator bawaan.
+  final void Function(int)? onTap;
+
+  /// Override status login dari luar. Kalau null, dicek sendiri dari SharedPreferences.
+  final bool? isLoggedIn;
+
+  /// Tampilkan loading spinner di tab ke-3 saat proses logout.
+  final bool isLoggingOut;
+
+  const CustomBottomNav({
+    super.key,
+    required this.currentIndex,
+    this.onTap,
+    this.isLoggedIn,
+    this.isLoggingOut = false,
+  });
 
   @override
   State<CustomBottomNav> createState() => _CustomBottomNavState();
@@ -15,12 +28,23 @@ class CustomBottomNav extends StatefulWidget {
 
 class _CustomBottomNavState extends State<CustomBottomNav> {
   bool _isLoggedIn = false;
-  bool _isLoggingOut = false;
 
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    if (widget.isLoggedIn == null) {
+      _checkLoginStatus();
+    } else {
+      _isLoggedIn = widget.isLoggedIn!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(CustomBottomNav oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isLoggedIn != null) {
+      _isLoggedIn = widget.isLoggedIn!;
+    }
   }
 
   Future<void> _checkLoginStatus() async {
@@ -33,97 +57,15 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
     }
   }
 
-  Future<void> _handleLogout() async {
-    // Biar gak dobel klik
-    if (_isLoggingOut) return;
-
-    // Tunjukin dialog konfirmasi
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            'Keluar Akun?',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444), // rose-500
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                'Ya, Keluar',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm != true) return;
-
-    setState(() {
-      _isLoggingOut = true;
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('safetalk_token');
-
-    try {
-      // 1. Tembak API Logout di Laravel
-      if (token != null) {
-        await http.post(
-          Uri.parse('https://backend.safetalkai.my.id/api/auth/logout'),
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
-      }
-    } catch (e) {
-      debugPrint("Gagal hit API Logout: $e");
-    } finally {
-      // 2. Hapus token di penyimpanan lokal (tetep dihapus walau API error)
-      await prefs.remove('safetalk_token');
-      await prefs.remove('safetalk_role');
-      await prefs.remove('safetalk_session');
-
-      if (mounted) {
-        setState(() {
-          _isLoggingOut = false;
-        });
-
-        // Kasih snackbar biar kece
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Anda telah berhasil keluar.'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
-        // Arahkan ke halaman login
-        Navigator.pushReplacementNamed(context, '/login');
-      }
-    }
-  }
-
   void _onItemTapped(BuildContext context, int index) {
-    if (index == widget.currentIndex) return;
+    // Kalau ada onTap dari luar, delegasi ke sana
+    if (widget.onTap != null) {
+      widget.onTap!(index);
+      return;
+    }
 
+    // Fallback: navigasi default pakai named routes
+    if (index == widget.currentIndex) return;
     switch (index) {
       case 0:
         Navigator.pushReplacementNamed(context, '/dashboard');
@@ -133,7 +75,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
         break;
       case 2:
         if (_isLoggedIn) {
-          _handleLogout();
+          Navigator.pushReplacementNamed(context, '/profile');
         } else {
           Navigator.pushReplacementNamed(context, '/login');
         }
@@ -143,6 +85,9 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isLoggedIn = widget.isLoggedIn ?? _isLoggedIn;
+    final bool isLoggingOut = widget.isLoggingOut;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -165,15 +110,14 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
           topRight: Radius.circular(24),
         ),
         child: BottomNavigationBar(
-          currentIndex: widget.currentIndex,
+          currentIndex: widget.currentIndex > 2 ? 0 : widget.currentIndex,
           onTap: (index) => _onItemTapped(context, index),
           backgroundColor: Colors.white,
           type: BottomNavigationBarType.fixed,
-          // Kalau lagi ada di index 2 dan statusnya udah login, warnanya abu-abu aja biar ga aneh
-          selectedItemColor: widget.currentIndex == 2 && _isLoggedIn
+          selectedItemColor: widget.currentIndex == 2 && isLoggedIn
               ? const Color(0xFF9CA3AF)
-              : const Color(0xFF4F46E5), // indigo-600
-          unselectedItemColor: const Color(0xFF9CA3AF), // gray-400
+              : const Color(0xFF4F46E5),
+          unselectedItemColor: const Color(0xFF9CA3AF),
           selectedLabelStyle: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -185,89 +129,85 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
           elevation: 0,
           items: [
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: widget.currentIndex == 0
-                      ? const Color(0xFFEEF2FF) // indigo-50
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  LucideIcons.messageSquare,
-                  size: 24,
-                  color: widget.currentIndex == 0
-                      ? const Color(0xFF4F46E5) // indigo-600
-                      : const Color(0xFF9CA3AF),
-                ),
+              icon: _buildIcon(
+                0,
+                LucideIcons.messageSquare,
+                const Color(0xFF4F46E5),
+                const Color(0xFFEEF2FF),
               ),
               label: 'Chat',
             ),
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: widget.currentIndex == 1
-                      ? const Color(0xFFFFF1F2) // rose-50
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  LucideIcons.phone,
-                  size: 24,
-                  color: widget.currentIndex == 1
-                      ? const Color(0xFFE11D48) // rose-600
-                      : const Color(0xFF9CA3AF),
-                ),
+              icon: _buildIcon(
+                1,
+                LucideIcons.phone,
+                const Color(0xFFE11D48),
+                const Color(0xFFFFF1F2),
               ),
               label: 'Darurat',
             ),
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                // Efek hover/selected untuk tombol ketiga
-                decoration: BoxDecoration(
-                  color: widget.currentIndex == 2 && !_isLoggedIn
-                      ? const Color(0xFFEEF2FF) // indigo-50
-                      : Colors.transparent, // Polos kalau udah login
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: _isLoggingOut
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Color(0xFFE11D48),
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        _isLoggedIn ? LucideIcons.logOut : LucideIcons.logIn,
-                        size: 24,
-                        color: widget.currentIndex == 2 && !_isLoggedIn
-                            ? const Color(0xFF4F46E5) // indigo-600
-                            : const Color(0xFF9CA3AF),
-                      ),
-              ),
-              label: _isLoggingOut
+              icon: _buildLoginLogoutIcon(isLoggedIn, isLoggingOut),
+              label: isLoggingOut
                   ? 'Keluar...'
-                  : (_isLoggedIn ? 'Keluar' : 'Login'),
+                  : (isLoggedIn ? 'Keluar' : 'Login'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildIcon(
+    int index,
+    IconData iconData,
+    Color activeColor,
+    Color activeBg,
+  ) {
+    final bool isSelected = widget.currentIndex == index;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected ? activeBg : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        iconData,
+        size: 24,
+        color: isSelected ? activeColor : const Color(0xFF9CA3AF),
+      ),
+    );
+  }
+
+  Widget _buildLoginLogoutIcon(bool isLoggedIn, bool isLoggingOut) {
+    final bool isSelected = widget.currentIndex == 2;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected && !isLoggedIn
+            ? const Color(0xFFEEF2FF)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: isLoggingOut
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: Padding(
+                padding: EdgeInsets.all(4.0),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Color(0xFFE11D48),
+                ),
+              ),
+            )
+          : Icon(
+              isLoggedIn ? LucideIcons.logOut : LucideIcons.logIn,
+              size: 24,
+              color: isSelected && !isLoggedIn
+                  ? const Color(0xFF4F46E5)
+                  : const Color(0xFF9CA3AF),
+            ),
     );
   }
 }
