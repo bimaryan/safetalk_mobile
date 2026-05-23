@@ -19,16 +19,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _namaController;
   late TextEditingController _usernameController;
   late TextEditingController _emailController;
-  late TextEditingController _tanggalLahirController; // <-- Tambahan Controller
+  late TextEditingController _tanggalLahirController;
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
-  bool _showPassword = false;
 
   @override
   void initState() {
     super.initState();
-    // Isi form otomatis dengan data yang ada
     _namaController = TextEditingController(
       text: widget.userData['nama_lengkap'],
     );
@@ -42,7 +40,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? ''
           : widget.userData['email'],
     );
-    // Isi tanggal lahir jika ada
     _tanggalLahirController = TextEditingController(
       text: widget.userData['tanggal_lahir'] ?? '',
     );
@@ -53,16 +50,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _namaController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
-    _tanggalLahirController.dispose(); // <-- Jangan lupa di-dispose
+    _tanggalLahirController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // --- FUNGSI MUNCULKAN KALENDER ---
   Future<void> _selectDate(BuildContext context) async {
     DateTime initialDate = DateTime.now();
 
-    // Jika sudah ada tanggal lahir sebelumnya, buka kalender di tanggal tersebut
     if (_tanggalLahirController.text.isNotEmpty) {
       try {
         initialDate = DateTime.parse(_tanggalLahirController.text);
@@ -74,15 +69,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime(1900), // Batas tahun paling tua
-      lastDate: DateTime.now(), // Batas tahun paling baru (hari ini)
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4F46E5), // Warna header kalender
+              primary: Color(0xFF3B82F6),
               onPrimary: Colors.white,
-              onSurface: Color(0xFF1F2937),
+              onSurface: Color(0xFF1E293B),
             ),
           ),
           child: child!,
@@ -90,7 +85,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       },
     );
 
-    // Jika user memilih tanggal, format menjadi YYYY-MM-DD untuk Laravel
     if (picked != null) {
       setState(() {
         _tanggalLahirController.text =
@@ -108,15 +102,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('safetalk_token');
 
-      // Masukkan tanggal_lahir ke body request
       Map<String, dynamic> body = {
         'nama_lengkap': _namaController.text,
         'username': _usernameController.text,
         'email': _emailController.text,
-        'tanggal_lahir': _tanggalLahirController.text, // <-- Tambahan payload
+        'tanggal_lahir': _tanggalLahirController.text,
       };
 
-      // Hanya kirim password jika user mengetik sesuatu
       if (_passwordController.text.isNotEmpty) {
         body['password'] = _passwordController.text;
       }
@@ -141,10 +133,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(
-          context,
-          true,
-        ); // Kembali & beritahu ProfileScreen untuk refresh
+        Navigator.pop(context, true);
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,12 +160,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
-        title: const Text(
-          'Edit Profil',
-          style: TextStyle(
-            color: Color(0xFF1F2937),
-            fontWeight: FontWeight.bold,
+        automaticallyImplyLeading: false, // Matikan tombol back bawaan
+        titleSpacing: 16, // Atur jarak dari pinggir layar
+        title: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Row(
+            mainAxisSize: MainAxisSize.min, // Agar lebarnya menyesuaikan konten
+            children: const [
+              Icon(LucideIcons.chevronLeft, color: Color(0xFF1E293B), size: 24),
+              SizedBox(width: 4), // Jarak antara ikon dan teks
+              Text(
+                'Kembali',
+                style: TextStyle(
+                  color: Color(0xFF475569), 
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w600
+                ),
+              ),
+            ],
           ),
         ),
         bottom: PreferredSize(
@@ -185,105 +186,144 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildInputLabel('NAMA LENGKAP'),
+              const Text(
+                'Pengaturan Akun',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1E293B),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Kelola informasi pribadi Anda',
+                style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 32),
+
+              _buildInputLabel('Nama Pengguna'),
               _buildTextField(
                 controller: _namaController,
-                hint: 'Masukkan nama lengkap',
+                hint: 'Masukkan nama',
                 icon: LucideIcons.user,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              _buildInputLabel('USERNAME'),
+              _buildInputLabel('Username'),
               _buildTextField(
                 controller: _usernameController,
                 hint: 'Masukkan username',
                 icon: LucideIcons.atSign,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              _buildInputLabel('EMAIL'),
+              _buildInputLabel('Email'),
               _buildTextField(
                 controller: _emailController,
                 hint: 'Masukkan email',
                 icon: LucideIcons.mail,
                 keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // --- FIELD TANGGAL LAHIR ---
-              _buildInputLabel('TANGGAL LAHIR'),
+              _buildInputLabel('Tanggal Lahir'),
               TextFormField(
                 controller: _tanggalLahirController,
-                readOnly:
-                    true, // Dibuat readOnly agar keyboard tidak muncul, hanya kalender
+                readOnly: true,
                 onTap: () => _selectDate(context),
-                validator: (value) =>
-                    value!.isEmpty ? 'Tidak boleh kosong' : null,
+                validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155),
+                ),
                 decoration: InputDecoration(
-                  hintText: 'Pilih tanggal lahir (YYYY-MM-DD)',
                   prefixIcon: const Icon(
                     LucideIcons.calendar,
                     color: Color(0xFF94A3B8),
                     size: 20,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                    borderSide: const BorderSide(
+                      color: Color(0xFFE2E8F0),
+                      width: 1.5,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFE2E8F0),
+                      width: 1.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              _buildInputLabel('PASSWORD BARU (OPSIONAL)'),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_showPassword,
-                decoration: InputDecoration(
-                  hintText: 'Kosongkan jika tidak ingin ganti',
-                  prefixIcon: const Icon(
-                    LucideIcons.lock,
-                    color: Color(0xFF94A3B8),
-                    size: 20,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _showPassword ? LucideIcons.eyeOff : LucideIcons.eye,
-                      color: const Color(0xFF94A3B8),
-                      size: 20,
+              // Info Box
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9), // Slate 100
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(LucideIcons.info, size: 16, color: Color(0xFF64748B)),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Informasi ini hanya digunakan untuk personalisasi layanan dan tidak akan dibagikan kepada pihak ketiga.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                          height: 1.5,
+                        ),
+                      ),
                     ),
-                    onPressed: () =>
-                        setState(() => _showPassword = !_showPassword),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 40),
 
+              // Tombol Simpan
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: _isLoading ? null : _updateProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF3B82F6),
+                    padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
+                    elevation: 0,
                   ),
-                  child: _isLoading
+                  icon: _isLoading
+                      ? const SizedBox.shrink()
+                      : const Icon(
+                          LucideIcons.save,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                  label: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
@@ -302,6 +342,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -315,10 +356,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF334155),
-          letterSpacing: 1.2,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1E293B),
         ),
       ),
     );
@@ -333,15 +373,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      validator: (value) => value!.isEmpty ? 'Tidak boleh kosong' : null,
+      validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
+      style: const TextStyle(
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF334155),
+      ),
       decoration: InputDecoration(
-        hintText: hint,
         prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
         ),
       ),
     );
