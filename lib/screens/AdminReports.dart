@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import 'AdminCaseDetail.dart';
+import 'AdminCaseDetail.dart'; // Sesuaikan path jika beda
 
 class AdminReports extends StatefulWidget {
   const AdminReports({super.key});
@@ -16,6 +16,7 @@ class AdminReports extends StatefulWidget {
 class _AdminReportsState extends State<AdminReports> {
   List<dynamic> reports = [];
   bool isLoading = true;
+  bool isExporting = false; // State untuk loading export
   String searchQuery = "";
   int currentPage = 1;
   int lastPage = 1;
@@ -59,6 +60,30 @@ class _AdminReportsState extends State<AdminReports> {
     }
   }
 
+  // --- FUNGSI EXPORT EXCEL ---
+  Future<void> handleExportExcel() async {
+    setState(() => isExporting = true);
+    try {
+      // Catatan: Di mobile, Anda idealnya menggunakan package 'url_launcher' 
+      // untuk membuka URL ini di browser agar HP otomatis mendownloadnya.
+      // Contoh: await launchUrl(Uri.parse('https://backend.safetalkai.my.id/api/admin/reports/export?...'));
+      
+      await Future.delayed(const Duration(seconds: 2)); // Simulasi loading
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Fitur download Excel perlu integrasi package url_launcher di mobile."),
+          backgroundColor: Colors.blue,
+        )
+      );
+    } catch (e) {
+      debugPrint("Export Error: $e");
+    } finally {
+      if (mounted) setState(() => isExporting = false);
+    }
+  }
+
   Color _getBadgeColor(String category) {
     if (category == "NON_KDRT" || category == "SAPAAN") return Colors.green;
     if (["K1", "K3", "K5"].contains(category)) return Colors.red;
@@ -77,24 +102,51 @@ class _AdminReportsState extends State<AdminReports> {
           Text("Total $totalData laporan ditemukan.", style: TextStyle(color: Colors.grey.shade500)),
           const SizedBox(height: 16),
           
-          // Search Bar
-          TextField(
-            controller: _searchController,
-            onSubmitted: (value) {
-              setState(() => searchQuery = value);
-              fetchReports(page: 1);
-            },
-            decoration: InputDecoration(
-              hintText: "Cari ID / Nama... (Enter)",
-              prefixIcon: const Icon(LucideIcons.search),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+          // --- TOMBOL EXPORT & SEARCH BAR ---
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: isExporting ? null : handleExportExcel,
+                icon: isExporting 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(LucideIcons.download, size: 16, color: Colors.white),
+                label: Text(
+                  isExporting ? "Proses..." : "Export Excel",
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0)
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onSubmitted: (value) {
+                    setState(() => searchQuery = value);
+                    fetchReports(page: 1);
+                  },
+                  decoration: InputDecoration(
+                    hintText: "Cari ID / Nama...",
+                    prefixIcon: const Icon(LucideIcons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0)
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -141,7 +193,6 @@ class _AdminReportsState extends State<AdminReports> {
                           trailing: IconButton(
                             icon: const Icon(LucideIcons.eye, color: Colors.blue),
                             onPressed: () {
-                               // Navigasi ke Detail
                                Navigator.push(context, MaterialPageRoute(builder: (_) => AdminCaseDetail(id: report['id'].toString())));
                             },
                           ),
