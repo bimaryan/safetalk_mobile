@@ -53,7 +53,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     await _fetchHistory();
-    await _setupPusher();
+    await _setupPusher(); // Setup Laravel Reverb
   }
 
   Future<void> _setupPusher() async {
@@ -61,26 +61,31 @@ class _ChatScreenState extends State<ChatScreen> {
     final token = prefs.getString('safetalk_token');
     final sessionId = prefs.getString('safetalk_session');
 
+    // Subscribe ke Public Channel sesuai dengan Token/Session
     _channelName = 'chat.${token ?? sessionId ?? 'public'}';
 
     try {
       await pusher.init(
-        apiKey: "API_KEY_PUSHER_LU", // Sesuaikan API_KEY
-        cluster: "ap1", // Sesuaikan Cluster
+        apiKey: "tsj9nxzzm2a7k0buvvbm",
+        cluster: "mt1",
+        proxy: 'ws://backend.safetalkai.my.id:8080',
+        useTLS: false,
+
         onEvent: _onPusherEvent,
       );
       await pusher.subscribe(channelName: _channelName);
       await pusher.connect();
+      debugPrint("✅ MANTAP! Berhasil connect ke Laravel Reverb!");
     } catch (e) {
-      debugPrint("Pusher Error: $e");
+      debugPrint("⚠️ Reverb Connection Error: $e");
     }
   }
 
   void _onPusherEvent(PusherEvent event) {
-    if (event.eventName == "App\\Events\\MessageSent") {
+    if (event.eventName.contains("message.new")) {
       final data = jsonDecode(event.data);
 
-      if (data['role'] != 'user') {
+      if (data['role'] != 'warga') {
         if (mounted) {
           setState(() {
             _messages.add({
@@ -212,7 +217,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Helper untuk merender teks dengan markdown sederhana (bold)
   Widget _buildFormattedText(String text, bool isFromAdmin, bool isFromAI) {
     if (text.isEmpty) return const SizedBox();
 
@@ -228,11 +232,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     int lastMatchEnd = 0;
     for (var match in matches) {
-      // Teks biasa sebelum match
       if (match.start > lastMatchEnd) {
         spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start)));
       }
-      // Teks bold
       spans.add(
         TextSpan(
           text: match.group(1),
@@ -241,7 +243,6 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       lastMatchEnd = match.end;
     }
-    // Teks sisa
     if (lastMatchEnd < text.length) {
       spans.add(TextSpan(text: text.substring(lastMatchEnd)));
     }
@@ -251,7 +252,7 @@ class _ChatScreenState extends State<ChatScreen> {
         style: TextStyle(
           fontSize: 14,
           color: defaultColor,
-          fontFamily: 'Roboto', // Ganti sesuai font lu kalau ada
+          fontFamily: 'Roboto',
           height: 1.4,
         ),
         children: spans,
@@ -328,7 +329,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        // ACTIONS (TOMBOL KELUAR) DIHAPUS DARI SINI BRAY
       ),
       body: Column(
         children: [
@@ -431,14 +431,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                       ),
                                     ),
 
-                                  // Format teks dengan RichText (bold parsing)
                                   _buildFormattedText(
                                     msg['text'] ?? '',
                                     isFromAdmin,
                                     isFromAI,
                                   ),
 
-                                  // INSTRUCTION ALERT (Mirip dengan React)
                                   if (isFromAI &&
                                       msg['instruction'] != null &&
                                       msg['instruction'].toString().isNotEmpty)

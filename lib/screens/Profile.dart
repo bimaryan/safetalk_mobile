@@ -27,9 +27,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('safetalk_token');
 
+    // Jangan redirect ke /login dari sini — ProfileScreen ada di dalam IndexedStack
+    // yang diinisialisasi sekaligus semua oleh DashboardLayout. Redirect dilakukan
+    // oleh DashboardLayout._onItemTapped sebelum user bisa melihat ProfileScreen.
     if (token == null) {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+        setState(() {
+          _errorMessage = 'not_logged_in';
+          _isLoading = false;
+        });
       }
       return;
     }
@@ -175,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        centerTitle: true,
+        centerTitle: false,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: const Color(0xFFE5E7EB), height: 1),
@@ -185,6 +191,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
             )
+          : _errorMessage == 'not_logged_in'
+          ? _buildNotLoggedInState()
           : _errorMessage.isNotEmpty
           ? Center(
               child: Padding(
@@ -420,6 +428,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Tampilkan ini kalau user anonim (IndexedStack menginisialisasi ProfileScreen
+  // di background, tapi user anonim tidak seharusnya bisa melihat kontennya)
+  Widget _buildNotLoggedInState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                LucideIcons.userX,
+                size: 40,
+                color: Color(0xFF4F46E5),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Belum Masuk Akun',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Login untuk mengakses profil dan menyimpan riwayat percakapan Anda.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(LucideIcons.logIn, size: 18),
+              label: const Text(
+                'Masuk Sekarang',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
