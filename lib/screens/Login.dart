@@ -55,6 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200 && result['status'] == 'success') {
         final prefs = await SharedPreferences.getInstance();
+        
+        // Simpan Data Autentikasi
         await prefs.setString('safetalk_token', result['token']);
         await prefs.setBool('isAuthenticated', true);
         await prefs.setString('userRole', result['user']['role']);
@@ -62,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        // Lempar ke AuthGate biar dia yang nentuin mau masuk Admin atau Dashboard warga
+        // Lempar ke AuthGate biar dia yang nentuin mau masuk Admin atau Dashboard Warga
         Navigator.pushReplacementNamed(context, '/auth_gate');
       } else {
         setState(() {

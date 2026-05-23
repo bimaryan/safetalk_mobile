@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Import Screens & Layouts
+// Import Screens
 import 'screens/Home.dart';
 import 'screens/Login.dart';
 import 'screens/Register.dart';
 import 'screens/Panduan.dart';
 import 'screens/Profile.dart';
+
+// Import Layouts (Sesuaikan dengan struktur folder barumu)
 import 'layouts/DashboardLayout.dart';
+import 'layouts/AdminLayout.dart';
 
 void main() {
   runApp(const SafeTalkApp());
@@ -32,12 +35,15 @@ class SafeTalkApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
 
-        // Route App Utama
+        // Route App Utama (Warga)
         '/auth_gate': (context) => const AuthGate(),
         '/dashboard': (context) => const DashboardLayout(),
         '/chat': (context) => const DashboardLayout(), // Alias untuk dashboard
         '/panduan': (context) => const PanduanScreen(),
         '/profile': (context) => const ProfileScreen(),
+        
+        // Route Admin
+        '/admin': (context) => const AdminLayout(), // <-- Route baru Admin ditambahkan di sini
       },
     );
   }
@@ -66,14 +72,15 @@ class _AuthGateState extends State<AuthGate> {
 
     if (!mounted) return;
 
-    // Izinkan masuk JIKA role adalah "warga" (sudah login) ATAU null (anonim)
-    if (role == 'warga' || role == null) {
+    // --- LOGIKA PERCABANGAN ROLE ---
+    if (role == 'admin') {
+      // Jika Admin, arahkan ke Panel Admin
+      Navigator.pushReplacementNamed(context, '/admin');
+    } else if (role == 'warga' || role == null) {
+      // Jika Warga (atau mode anonim/belum ada role spesifik), arahkan ke Dashboard
       Navigator.pushReplacementNamed(context, '/dashboard');
-    }
-    // Tolak JIKA role adalah "admin"
-    else if (role == 'admin') {
-      Navigator.pushReplacementNamed(context, '/'); // Ganti /admin nanti
     } else {
+      // Fallback aman
       Navigator.pushReplacementNamed(context, '/');
     }
   }
