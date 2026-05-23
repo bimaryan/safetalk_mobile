@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:path_provider/path_provider.dart';
 
-import 'AdminCaseDetail.dart'; // Sesuaikan path jika beda
+import 'AdminCaseDetail.dart';
 
 class AdminReports extends StatefulWidget {
   const AdminReports({super.key});
@@ -64,21 +66,58 @@ class _AdminReportsState extends State<AdminReports> {
   Future<void> handleExportExcel() async {
     setState(() => isExporting = true);
     try {
-      // Catatan: Di mobile, Anda idealnya menggunakan package 'url_launcher' 
-      // untuk membuka URL ini di browser agar HP otomatis mendownloadnya.
-      // Contoh: await launchUrl(Uri.parse('https://backend.safetalkai.my.id/api/admin/reports/export?...'));
-      
-      await Future.delayed(const Duration(seconds: 2)); // Simulasi loading
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Fitur download Excel perlu integrasi package url_launcher di mobile."),
-          backgroundColor: Colors.blue,
-        )
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('safetalk_token');
+
+      // 1. Lakukan request ke API untuk mengambil file (blob/bytes)
+      final response = await http.get(
+        Uri.parse('https://backend.safetalkai.my.id/api/admin/reports/export?search=$searchQuery'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
+
+      if (response.statusCode == 200) {
+        // 2. Tentukan lokasi folder penyimpanan
+        Directory? directory;
+        if (Platform.isAndroid) {
+          // Paksa simpan di folder Download bawaan Android
+          directory = Directory('/storage/emulated/0/Download');
+          if (!await directory.exists()) {
+            directory = await getExternalStorageDirectory(); // Fallback jika gagal
+          }
+        } else {
+          // Untuk iOS
+          directory = await getApplicationDocumentsDirectory();
+        }
+
+        // 3. Buat nama file dan tulis datanya
+        final String dateStr = DateTime.now().toIso8601String().split('T')[0];
+        final String fileName = 'Laporan-SafeTalk-$dateStr.xlsx';
+        final File file = File('${directory!.path}/$fileName');
+        
+        await file.writeAsBytes(response.bodyBytes);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Berhasil! File Excel disimpan di: ${file.path}"),
+            backgroundColor: Colors.green.shade600,
+            duration: const Duration(seconds: 4),
+          )
+        );
+      } else {
+        throw Exception("Gagal mengunduh file dari server.");
+      }
     } catch (e) {
       debugPrint("Export Error: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Gagal mengunduh file: $e"),
+          backgroundColor: Colors.red.shade600,
+        )
+      );
     } finally {
       if (mounted) setState(() => isExporting = false);
     }
