@@ -23,6 +23,13 @@ class _AdminReportsState extends State<AdminReports> {
   int currentPage = 1;
   int lastPage = 1;
   int totalData = 0;
+  DateTime? selectedMonth;
+
+  String get monthQuery {
+    if (selectedMonth == null) return "";
+    final monthStr = selectedMonth!.month.toString().padLeft(2, '0');
+    return "${selectedMonth!.year}-$monthStr";
+  }
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -40,7 +47,7 @@ class _AdminReportsState extends State<AdminReports> {
 
       final response = await http.get(
         Uri.parse(
-          'https://backend.safetalkai.my.id/api/admin/reports?page=$page&search=$searchQuery',
+          'https://backend.safetalkai.my.id/api/admin/reports?page=$page&search=$searchQuery&month=$monthQuery',
         ),
         headers: {
           'Accept': 'application/json',
@@ -74,7 +81,7 @@ class _AdminReportsState extends State<AdminReports> {
       // 1. Lakukan request ke API untuk mengambil file (blob/bytes)
       final response = await http.get(
         Uri.parse(
-          'https://backend.safetalkai.my.id/api/admin/reports/export?search=$searchQuery',
+          'https://backend.safetalkai.my.id/api/admin/reports/export?search=$searchQuery&month=$monthQuery',
         ),
         headers: {'Authorization': 'Bearer $token'},
       );
@@ -151,28 +158,85 @@ class _AdminReportsState extends State<AdminReports> {
           const SizedBox(height: 16),
 
           // --- TOMBOL EXPORT & SEARCH BAR ---
-          TextField(
-            controller: _searchController,
-            onSubmitted: (value) {
-              setState(() => searchQuery = value);
-              fetchReports(page: 1);
-            },
-            decoration: InputDecoration(
-              hintText: "Cari ID / Nama...",
-              prefixIcon: const Icon(LucideIcons.search),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onSubmitted: (value) {
+                    setState(() => searchQuery = value);
+                    fetchReports(page: 1);
+                  },
+                  decoration: InputDecoration(
+                    hintText: "Cari ID / Nama...",
+                    prefixIcon: const Icon(LucideIcons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: selectedMonth != null ? Colors.blue.shade50 : Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    LucideIcons.calendar,
+                    color: selectedMonth != null ? Colors.blue.shade600 : Colors.grey.shade600,
+                  ),
+                  onPressed: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedMonth ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                      helpText: 'Pilih Bulan & Tahun',
+                    );
+                    if (picked != null) {
+                      setState(() => selectedMonth = picked);
+                      fetchReports(page: 1);
+                    }
+                  },
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-            ),
+            ],
           ),
+          if (selectedMonth != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Text(
+                    "Filter: ${selectedMonth!.month.toString().padLeft(2, '0')}/${selectedMonth!.year}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      setState(() => selectedMonth = null);
+                      fetchReports(page: 1);
+                    },
+                    child: const Icon(LucideIcons.xCircle, size: 16, color: Colors.red),
+                  )
+                ],
+              ),
+            ),
           const SizedBox(height: 12), // Jarak antara search dan tombol
           ElevatedButton.icon(
             onPressed: isExporting ? null : handleExportExcel,

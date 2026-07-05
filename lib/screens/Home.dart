@@ -74,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.remove('safetalk_token');
     await prefs.remove('isAuthenticated');
     await prefs.remove('userRole');
+    await prefs.remove('safetalk_session'); // Clear anonymous session
     if (mounted) Navigator.pushReplacementNamed(context, '/chat');
   }
 

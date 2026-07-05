@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -116,6 +117,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
                 const SizedBox(height: 24),
+                if (totalKasus > 0)
+                  SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections: [
+                          if (risikoTinggi > 0) PieChartSectionData(color: Colors.red, value: risikoTinggi.toDouble(), title: '${((risikoTinggi/totalKasus)*100).toStringAsFixed(1)}%', radius: 50, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          if (risikoSedang > 0) PieChartSectionData(color: Colors.orange, value: risikoSedang.toDouble(), title: '${((risikoSedang/totalKasus)*100).toStringAsFixed(1)}%', radius: 50, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          if (risikoRendah > 0) PieChartSectionData(color: Colors.blue, value: risikoRendah.toDouble(), title: '${((risikoRendah/totalKasus)*100).toStringAsFixed(1)}%', radius: 50, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          if (nonKdrt > 0) PieChartSectionData(color: Colors.green, value: nonKdrt.toDouble(), title: '${((nonKdrt/totalKasus)*100).toStringAsFixed(1)}%', radius: 50, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (totalKasus > 0) const SizedBox(height: 24),
                 _buildProgressBar("Risiko Tinggi / Darurat (K4, K5)", risikoTinggi, totalKasus, Colors.red),
                 const SizedBox(height: 16),
                 _buildProgressBar("Risiko Sedang (K2, K3)", risikoSedang, totalKasus, Colors.orange),
