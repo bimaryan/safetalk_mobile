@@ -208,9 +208,28 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         setState(() => _isLocked = result['is_locked'] ?? false);
         await _fetchHistory();
+      } else {
+        // Tampilkan error dari backend Laravel jika statusCode bukan 200
+        debugPrint("Server Error: ${response.statusCode} - ${response.body}");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Gagal: ${result['error'] ?? 'Terjadi kesalahan di server.'}"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint("Send error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Koneksi error: Cek internet atau CORS. ($e)"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
       _scrollToBottom();
