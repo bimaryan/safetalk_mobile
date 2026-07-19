@@ -83,7 +83,10 @@ class _AdminReportsState extends State<AdminReports> {
         Uri.parse(
           'https://backend.safetalkai.my.id/api/admin/reports/export?search=$searchQuery&month=$monthQuery',
         ),
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -117,7 +120,7 @@ class _AdminReportsState extends State<AdminReports> {
           ),
         );
       } else {
-        throw Exception("Gagal mengunduh file dari server.");
+        throw Exception("Gagal mengunduh file dari server. Status: ${response.statusCode}, Body: ${response.body}");
       }
     } catch (e) {
       debugPrint("Export Error: $e");
