@@ -118,16 +118,36 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _fetchHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('safetalk_token');
-    final sessionId = prefs.getString('safetalk_session');
 
-    Map<String, String> headers = {'Accept': 'application/json'};
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    } else if (sessionId != null) {
-      headers['X-Session-ID'] = sessionId;
-    } else {
+    if (token == null) {
+      // USER ANONIM: Load dari local storage
+      final localChat = prefs.getString('safetalk_local_chat');
+      if (mounted) {
+        setState(() {
+          if (localChat != null) {
+            _messages = List<Map<String, dynamic>>.from(jsonDecode(localChat));
+          } else {
+            final now = DateTime.now();
+            final timeString = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+            _messages = [
+              {
+                'role': 'ai',
+                'text': 'Halo! Saya **SafeTalk AI**. Ada yang bisa saya bantu?',
+                'time': timeString,
+              }
+            ];
+          }
+        });
+        _scrollToBottom();
+      }
       return;
     }
+
+    // USER LOGIN: Fetch dari API
+    Map<String, String> headers = {
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
 
     try {
       final response = await http.get(
@@ -142,14 +162,12 @@ class _ChatScreenState extends State<ChatScreen> {
             _isLocked = (data['is_locked'] == 1 || data['is_locked'] == true);
             if (data['data'] != null && (data['data'] as List).isNotEmpty) {
               final now = DateTime.now();
-              final timeString =
-                  "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+              final timeString = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
               _messages = [
                 {
                   'role': 'ai',
-                  'text':
-                      'Halo! Saya **SafeTalk AI**. Ada yang bisa saya bantu?',
+                  'text': 'Halo! Saya **SafeTalk AI**. Ada yang bisa saya bantu?',
                   'time': timeString,
                 },
                 ...List<Map<String, dynamic>>.from(data['data']),
@@ -169,8 +187,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty || _isLoading) return;
 
     final now = DateTime.now();
-    final timeString =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final timeString = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     setState(() {
       _messages.add({'role': 'user', 'text': text, 'time': timeString});
@@ -181,7 +198,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('safetalk_token');
-    final sessionId = prefs.getString('safetalk_session');
+    
+    // Save to local storage for anonymous user immediately after sending
+    if (token == null) {
+      await prefs.setString('safetalk_local_chat', jsonEncode(_messages));
+    }
 
     Map<String, String> headers = {
       'Content-Type': 'application/json',
@@ -189,9 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
     };
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
-    } else if (sessionId != null) {
-      headers['X-Session-ID'] = sessionId;
-    }
+    } 
 
     try {
       final response = await http.post(
@@ -203,11 +222,24 @@ class _ChatScreenState extends State<ChatScreen> {
       final result = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        if (result['session_id'] != null && token == null) {
-          await prefs.setString('safetalk_session', result['session_id']);
-        }
         setState(() => _isLocked = result['is_locked'] ?? false);
-        await _fetchHistory();
+        
+        if (token == null) {
+          // Add AI reply to local messages and save
+          if (result['data'] != null) {
+            setState(() {
+              _messages.add({
+                'role': result['data']['role'],
+                'text': result['data']['text'],
+                'time': result['data']['time'],
+                'instruction': result['data']['instruction'],
+              });
+            });
+            await prefs.setString('safetalk_local_chat', jsonEncode(_messages));
+          }
+        } else {
+          await _fetchHistory();
+        }
       } else {
         // Tampilkan error dari backend Laravel jika statusCode bukan 200
         debugPrint("Server Error: ${response.statusCode} - ${response.body}");
